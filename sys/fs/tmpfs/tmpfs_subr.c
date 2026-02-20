@@ -66,6 +66,8 @@
 #include <vm/swap_pager.h>
 #include <vm/uma.h>
 
+#include <sys/libttak/ttak_uma.h>
+
 #include <fs/tmpfs/tmpfs.h>
 #include <fs/tmpfs/tmpfs_fifoops.h>
 #include <fs/tmpfs/tmpfs_vnops.h>
@@ -79,7 +81,7 @@ static int tmpfs_mem_percent = TMPFS_MEM_PERCENT;
 static void tmpfs_set_reserve_from_percent(void);
 
 MALLOC_DEFINE(M_TMPFSDIR, "tmpfs dir", "tmpfs dirent structure");
-static uma_zone_t tmpfs_node_pool;
+static egor_ttak_zone_t tmpfs_node_egor_zone;
 VFS_SMR_DECLARE;
 
 int tmpfs_pager_type = -1;
@@ -370,10 +372,10 @@ tmpfs_subr_init(void)
 	    OBJT_SWAP);
 	if (tmpfs_pager_type == -1)
 		return (EINVAL);
-	tmpfs_node_pool = uma_zcreate("TMPFS node",
+	egor_ttak_zone_init(&tmpfs_node_egor_zone, "TMPFS node",
 	    sizeof(struct tmpfs_node), tmpfs_node_ctor, tmpfs_node_dtor,
-	    tmpfs_node_init, tmpfs_node_fini, UMA_ALIGN_PTR, 0);
-	VFS_SMR_ZONE_SET(tmpfs_node_pool);
+	    tmpfs_node_init, tmpfs_node_fini, UMA_ALIGN_PTR, 0, false);
+	VFS_SMR_ZONE_SET(tmpfs_node_egor_zone.uma_zone);
 
 	tmpfs_pages_avail_init = tmpfs_mem_avail();
 	tmpfs_set_reserve_from_percent();
@@ -386,7 +388,8 @@ tmpfs_subr_uninit(void)
 	if (tmpfs_pager_type != -1)
 		vm_pager_free_dyn_type(tmpfs_pager_type);
 	tmpfs_pager_type = -1;
-	uma_zdestroy(tmpfs_node_pool);
+	egor_ttak_zone_reset(&tmpfs_node_egor_zone);
+	egor_ttak_zone_destroy(&tmpfs_node_egor_zone);
 }
 
 static int
@@ -578,7 +581,7 @@ tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, __enum_uint8(vtype) 
 	if ((mp->mnt_kern_flag & MNT_RDONLY) != 0)
 		return (EROFS);
 
-	nnode = uma_zalloc_smr(tmpfs_node_pool, M_WAITOK);
+	nnode = egor_ttak_zone_alloc(&tmpfs_node_egor_zone, M_WAITOK);
 
 	/* Generic initialization. */
 	nnode->tn_type = type;
@@ -804,7 +807,7 @@ tmpfs_free_node_locked(struct tmpfs_mount *tmp, struct tmpfs_node *node,
 		break;
 	}
 
-	uma_zfree_smr(tmpfs_node_pool, node);
+	egor_ttak_zone_free(&tmpfs_node_egor_zone, node);
 	return (true);
 }
 

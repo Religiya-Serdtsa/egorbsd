@@ -1,0 +1,3 @@
+[submodule "vendor/libttak"]
+	path = vendor/libttak
+	url = https://github.com/religiya-serdtsa/libttak
