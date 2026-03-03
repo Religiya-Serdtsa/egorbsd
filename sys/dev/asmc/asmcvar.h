@@ -78,6 +78,9 @@ struct asmc_softc {
 /* Number of keys */
 #define ASMC_NKEYS		"#KEY"	/* RO; 4 bytes */
 
+/* Query the ASMC revision */
+#define ASMC_KEY_REV		"REV "  /* RO: 6 bytes */
+
 /*
  * Fan control via SMC.
  */
@@ -124,6 +127,11 @@ struct asmc_softc {
  * Clamshell.
  */
 #define ASMC_KEY_CLAMSHELL	"MSLD"	/* RO; 1 byte */
+
+/*
+ * Auto power on / Wake-on-LAN.
+ */
+#define ASMC_KEY_AUPO		"AUPO"	/* RW; 1 byte */
 
 /*
  * Interrupt keys.
